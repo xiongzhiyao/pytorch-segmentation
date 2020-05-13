@@ -1,6 +1,6 @@
 import torch.nn as nn
 from torchvision import models
-import pretrainedmodels
+#import pretrainedmodels
 from .xception import Xception65
 from .mobilenet import MobileNetV2
 
