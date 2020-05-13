@@ -48,7 +48,7 @@ net_config = config['Net']
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 modelname = config_path.stem
-model_path = Path('../model') / modelname / 'model.pth'
+model_path = Path('/home/ec2-user/CRN/pytorch-segmentation/model') / modelname / 'model.pth'
 
 if 'unet' in net_config['dec_type']:
     net_type = 'unet'
@@ -67,7 +67,7 @@ model.eval()
 
 batch_size = 1
 scales = [0.25, 0.75, 1, 1.25]
-valid_dataset = CityscapesDataset(split='valid', net_type=net_type)
+valid_dataset = CityscapesDataset(base_dir = '/home/ec2-user/CRN/pytorch-segmentation/data', split='valid', net_type=net_type)
 valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
 if vis_flag:
