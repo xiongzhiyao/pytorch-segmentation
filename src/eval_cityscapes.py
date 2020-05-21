@@ -102,6 +102,7 @@ if vis_flag:
             save_dir = os.path.join('/home/ec2-user/CRN/hover_data/occlusion', f'{name[0]}')
             sparse_matrix = scipy.sparse.csc_matrix(preds_np)
             scipy.sparse.save_npz(save_dir, sparse_matrix)
+            print(np.unique(preds_npgit))
             print(save_dir)
 
     #         images_list.append(images_np)
