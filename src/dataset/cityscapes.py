@@ -9,7 +9,30 @@ from torch.utils.data import DataLoader, Dataset
 
 from utils.preprocess import minmax_normalize, meanstd_normalize
 from utils.custum_aug import PadIfNeededRightBottom
+from glob import glob
+import os
 
+class HoverInferDataset(Dataset):
+
+    def __init__(self, base_dir, resize_size = (512, 512)):
+        
+        self.img_paths = glob(base_dir)
+        self.img_paths = sorted(self.img_paths)
+        self.resize_size = resize_size
+
+    def __len__(self):
+        return len(self.img_paths)
+
+    def __getitem__(self, index):
+        img_path = self.img_paths[index]
+        img = Image.open(img_path)
+        img = img.resize(self.resize_size) 
+        img = np.array(img)
+        img = minmax_normalize(img, norm_range=(-1, 1))
+        img = img.transpose(2, 0, 1)
+        img = torch.FloatTensor(img)
+        name = os.path.splitext(os.path.basename(img_path))[0]
+        return img, name
 
 class CityscapesDataset(Dataset):
     n_classes = 19

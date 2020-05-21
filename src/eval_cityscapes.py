@@ -5,6 +5,7 @@ from pathlib import Path
 from PIL import Image
 from tqdm import tqdm
 
+import os
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -13,12 +14,28 @@ import torch
 from torch.utils.data import DataLoader
 
 from models.net import EncoderDecoderNet, SPPNet
-from dataset.cityscapes import CityscapesDataset
+from dataset.cityscapes import CityscapesDataset, HoverInferDataset
 from utils.preprocess import minmax_normalize
+from torch.utils.data import DataLoader, Dataset
+import scipy
+
+#python src/eval_cityscapes.py /home/ec2-user/CRN/pytorch-segmentation/config/cityscapes_deeplabv3p.yaml --tta --vis
 
 valid_classes = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33]
 id2cls_dict = dict(zip(range(19), valid_classes))
 id2cls_func = np.vectorize(id2cls_dict.get)
+
+def predict_infer(batched, tta_flag=False):
+    images, name = batched
+    images_np = images.numpy().transpose(0, 2, 3, 1)
+    images = images.to(device)
+    if tta_flag:
+        preds = model.tta(images, scales=scales, net_type=net_type)
+    else:
+        preds = model.pred_resize(images, images.shape[2:], net_type=net_type)  
+    preds = preds.argmax(dim=1)
+    preds_np = preds.detach().cpu().numpy().astype(np.uint8)
+    return preds_np.squeeze(), name
 
 def predict(batched, tta_flag=False):
     images, labels, names = batched
@@ -67,7 +84,9 @@ model.eval()
 
 batch_size = 1
 scales = [0.25, 0.75, 1, 1.25]
-valid_dataset = CityscapesDataset(base_dir = '/home/ec2-user/CRN/pytorch-segmentation/data', split='valid', net_type=net_type)
+#valid_dataset = CityscapesDataset(base_dir = '/home/ec2-user/CRN/pytorch-segmentation/data', split='valid', net_type=net_type)
+valid_dataset = HoverInferDataset('/home/ec2-user/CRN/hover_data/image/*', \
+                                  resize_size = (256, 512))
 valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
 if vis_flag:
@@ -77,41 +96,48 @@ if vis_flag:
 
     with torch.no_grad():
         for batched in valid_loader:
-            images_np, labels_np, preds_np, names = predict(batched)
-            images_list.append(images_np)
-            labels_list.append(labels_np)
-            preds_list.append(preds_np)
-            if len(images_list) == 4:
-                break
+            #images_np, labels_np, preds_np, names = predict(batched)
+            preds_np, name = predict_infer(batched)
 
-    images = np.concatenate(images_list)
-    labels = np.concatenate(labels_list)
-    preds = np.concatenate(preds_list)
+            save_dir = os.path.join('/home/ec2-user/CRN/hover_data/occlusion', f'{name[0]}')
+            sparse_matrix = scipy.sparse.csc_matrix(preds_np)
+            scipy.sparse.save_npz(save_dir, sparse_matrix)
+            print(save_dir)
 
-    ignore_pixel = labels == 255
-    preds[ignore_pixel] = 20
-    labels[ignore_pixel] = 20
+    #         images_list.append(images_np)
+    #         labels_list.append(labels_np)
+    #         preds_list.append(preds_np)
+    #         if len(images_list) == 4:
+    #             break
 
-    fig, axes = plt.subplots(4, 3, figsize=(12, 10))
-    plt.tight_layout()
+    # images = np.concatenate(images_list)
+    # labels = np.concatenate(labels_list)
+    # preds = np.concatenate(preds_list)
 
-    axes[0, 0].set_title('input image')
-    axes[0, 1].set_title('prediction')
-    axes[0, 2].set_title('ground truth')
+    # ignore_pixel = labels == 255
+    # preds[ignore_pixel] = 20
+    # labels[ignore_pixel] = 20
 
-    for ax, img, lbl, pred in zip(axes, images, labels, preds):
-        ax[0].imshow(minmax_normalize(img, norm_range=(0, 1), orig_range=(-1, 1)))
-        ax[1].imshow(pred)
-        ax[2].imshow(lbl)
-        ax[0].set_xticks([])
-        ax[0].set_yticks([])
-        ax[1].set_xticks([])
-        ax[1].set_yticks([])
-        ax[2].set_xticks([])
-        ax[2].set_yticks([])
+    # fig, axes = plt.subplots(4, 3, figsize=(12, 10))
+    # plt.tight_layout()
 
-    plt.savefig('eval.png')
-    plt.close()
+    # axes[0, 0].set_title('input image')
+    # axes[0, 1].set_title('prediction')
+    # axes[0, 2].set_title('ground truth')
+
+    # for ax, img, lbl, pred in zip(axes, images, labels, preds):
+    #     ax[0].imshow(minmax_normalize(img, norm_range=(0, 1), orig_range=(-1, 1)))
+    #     ax[1].imshow(pred)
+    #     ax[2].imshow(lbl)
+    #     ax[0].set_xticks([])
+    #     ax[0].set_yticks([])
+    #     ax[1].set_xticks([])
+    #     ax[1].set_yticks([])
+    #     ax[2].set_xticks([])
+    #     ax[2].set_yticks([])
+
+    # plt.savefig('eval.png')
+    # plt.close()
 else:
     output_dir = Path('../output/cityscapes_val') / (str(modelname) + '_tta' if tta_flag else modelname)
     output_dir.mkdir(parents=True)
