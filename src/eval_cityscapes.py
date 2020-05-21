@@ -19,6 +19,12 @@ from utils.preprocess import minmax_normalize
 from torch.utils.data import DataLoader, Dataset
 import scipy
 
+# save_dir = os.path.join('/home/ec2-user/CRN/hover_data/occlusion', '310604.npz')
+# sparse_matrix = scipy.sparse.load_npz(save_dir)
+# dense = sparse_matrix.todense()
+# plt.imshow(dense)
+# plt.savefig('test.png')
+
 #python src/eval_cityscapes.py /home/ec2-user/CRN/pytorch-segmentation/config/cityscapes_deeplabv3p.yaml --tta --vis
 
 valid_classes = [7, 8, 11, 12, 13, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32, 33]
